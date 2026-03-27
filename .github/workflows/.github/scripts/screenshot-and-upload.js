@@ -1,133 +1,69 @@
-/**
- * screenshot-and-upload.js
- * 
- * Runs on every push. For each new/changed HTML chart file:
- *   1. Screenshots it at 1200x675 via headless Chrome
- *   2. Uploads the PNG to Typefully as a media asset
- *   3. Creates (or updates) a Typefully draft with the image attached
- *   4. Records everything in chart-manifest.json so we never double-process
- */
+const puppeteer = require('puppeteer-core');
+const fs = require('fs');
+const path = require('path');
+const https = require('https');
+const { execSync } = require('child_process');
 
-const puppeteer  = require('puppeteer');
-const fs         = require('fs');
-const path       = require('path');
-const https      = require('https');
-const http       = require('http');
-
-// ── CONFIG ────────────────────────────────────────────────────────────────────
-const TYPEFULLY_API_KEY      = process.env.TYPEFULLY_API_KEY;
-const GITHUB_PAGES_BASE      = process.env.GITHUB_PAGES_BASE;   // e.g. https://AlyssaClarkRE.github.io/alyssa-charts
+const TYPEFULLY_API_KEY = process.env.TYPEFULLY_API_KEY;
+const GITHUB_PAGES_BASE = process.env.GITHUB_PAGES_BASE || 'https://alyssa-ctrl.github.io/alyssa-charts';
 const TYPEFULLY_SOCIAL_SET_ID = process.env.TYPEFULLY_SOCIAL_SET_ID;
-const MANIFEST_PATH          = path.join(process.cwd(), 'chart-manifest.json');
-const SCREENSHOT_WIDTH       = 1200;
-const SCREENSHOT_HEIGHT      = 675;
+const MANIFEST_PATH = path.join(process.cwd(), 'chart-manifest.json');
 
-// ── HELPERS ───────────────────────────────────────────────────────────────────
+// ── Find Chrome ──────────────────────────────────────────────────────────────
+function findChrome() {
+  const candidates = [
+    process.env.PUPPETEER_EXECUTABLE_PATH,
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/google-chrome',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/chromium',
+  ].filter(Boolean);
 
-function loadManifest() {
-  if (fs.existsSync(MANIFEST_PATH)) {
-    return JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
+  for (const p of candidates) {
+    if (fs.existsSync(p)) {
+      console.log(`  Found Chrome at: ${p}`);
+      return p;
+    }
   }
-  return { charts: {} };
+  throw new Error('No Chrome found! Tried: ' + candidates.join(', '));
 }
 
-function saveManifest(manifest) {
-  fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
-}
-
-// Find all HTML files in repo root (non-recursive — keeps it simple)
-function findChartFiles() {
-  return fs.readdirSync(process.cwd())
-    .filter(f => f.endsWith('.html'))
-    .map(f => path.join(process.cwd(), f));
-}
-
-// Get list of files changed in this push from git
-function getChangedFiles() {
-  const { execSync } = require('child_process');
+// ── Get changed HTML files ───────────────────────────────────────────────────
+function getChangedHtmlFiles() {
   try {
-    const out = execSync('git diff --name-only HEAD~1 HEAD').toString().trim();
-    return out.split('\n').filter(f => f.endsWith('.html'));
+    const out = execSync('git diff --name-only HEAD~1 HEAD 2>/dev/null || git ls-files "*.html"')
+      .toString().trim();
+    return out.split('\n').filter(f => f.endsWith('.html') && fs.existsSync(f));
   } catch {
-    // First commit — treat all HTML as new
-    return findChartFiles().map(f => path.basename(f));
+    return fs.readdirSync('.').filter(f => f.endsWith('.html'));
   }
 }
 
-// Screenshot a local file using headless Chrome
+// ── Screenshot ───────────────────────────────────────────────────────────────
 async function screenshot(filePath) {
+  const executablePath = findChrome();
   const browser = await puppeteer.launch({
-    args: ['--no-sandbox', '--disable-setuid-sandbox'],
-    defaultViewport: { width: SCREENSHOT_WIDTH, height: SCREENSHOT_HEIGHT }
+    executablePath,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    defaultViewport: { width: 1200, height: 675 }
   });
   const page = await browser.newPage();
-  await page.setViewport({ width: SCREENSHOT_WIDTH, height: SCREENSHOT_HEIGHT, deviceScaleFactor: 2 });
-
-  const fileUrl = 'file://' + filePath;
-  await page.goto(fileUrl, { waitUntil: 'networkidle0', timeout: 15000 });
-
-  // Wait for bar animations to complete (our charts animate on load)
-  await new Promise(r => setTimeout(r, 1500));
-
-  const pngBuffer = await page.screenshot({ type: 'png', clip: { x: 0, y: 0, width: SCREENSHOT_WIDTH, height: SCREENSHOT_HEIGHT } });
+  await page.setViewport({ width: 1200, height: 675, deviceScaleFactor: 1 });
+  await page.goto('file://' + path.resolve(filePath), { waitUntil: 'networkidle0', timeout: 20000 });
+  await new Promise(r => setTimeout(r, 1800)); // wait for bar animations
+  const buffer = await page.screenshot({ type: 'png', clip: { x: 0, y: 0, width: 1200, height: 675 } });
   await browser.close();
-  return pngBuffer;
+  console.log(`  Screenshot size: ${buffer.length} bytes`);
+  return buffer;
 }
 
-// Upload PNG buffer to Typefully, return media_id
-async function uploadToTypefully(pngBuffer, filename) {
-  // Step 1: Request a presigned upload URL
-  const createRes = await typefullyFetch('POST', '/media/upload', {
-    file_name: filename,
-    content_type: 'image/png',
-    file_size: pngBuffer.length
-  });
-
-  const { upload_url, media_id } = createRes;
-
-  // Step 2: PUT the PNG directly to the presigned S3 URL
-  await putToS3(upload_url, pngBuffer);
-
-  // Step 3: Poll until Typefully confirms processing is complete
-  let attempts = 0;
-  while (attempts < 20) {
-    await new Promise(r => setTimeout(r, 2000));
-    const status = await typefullyFetch('GET', `/media/${media_id}/status`);
-    if (status.status === 'ready') break;
-    if (status.status === 'error') throw new Error(`Typefully media processing failed for ${filename}`);
-    attempts++;
-  }
-
-  return media_id;
-}
-
-// Create a Typefully draft with the image attached
-async function createDraft(title, tweetText, mediaId, publishAt) {
-  const body = {
-    draft_title: title,
-    platforms: {
-      x: {
-        enabled: true,
-        posts: [{ text: tweetText, media_ids: mediaId ? [mediaId] : [] }]
-      }
-    }
-  };
-  if (publishAt) body.publish_at = publishAt;
-
-  const res = await typefullyFetch('POST', '/drafts', body, true);
-  return res;
-}
-
-// Generic Typefully API fetch
-function typefullyFetch(method, endpoint, body = null, useSocialSet = false) {
+// ── Typefully API ─────────────────────────────────────────────────────────────
+function apiRequest(method, path, body) {
   return new Promise((resolve, reject) => {
-    const url = new URL(`https://api.typefully.com/v1${endpoint}`);
-    if (useSocialSet) url.searchParams.set('social_set_id', TYPEFULLY_SOCIAL_SET_ID);
-
     const payload = body ? JSON.stringify(body) : null;
     const options = {
-      hostname: url.hostname,
-      path: url.pathname + url.search,
+      hostname: 'api.typefully.com',
+      path: `/v1${path}`,
       method,
       headers: {
         'X-API-KEY': `Bearer ${TYPEFULLY_API_KEY}`,
@@ -135,13 +71,13 @@ function typefullyFetch(method, endpoint, body = null, useSocialSet = false) {
         ...(payload ? { 'Content-Length': Buffer.byteLength(payload) } : {})
       }
     };
-
     const req = https.request(options, res => {
       let data = '';
-      res.on('data', chunk => { data += chunk; });
+      res.on('data', c => data += c);
       res.on('end', () => {
-        try { resolve(JSON.parse(data)); }
-        catch { resolve(data); }
+        console.log(`  API ${method} ${path} → ${res.statusCode}`);
+        try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
+        catch { resolve({ status: res.statusCode, body: data }); }
       });
     });
     req.on('error', reject);
@@ -150,104 +86,122 @@ function typefullyFetch(method, endpoint, body = null, useSocialSet = false) {
   });
 }
 
-// PUT a buffer directly to a presigned S3 URL
-function putToS3(presignedUrl, buffer) {
-  return new Promise((resolve, reject) => {
-    const parsed = new URL(presignedUrl);
-    const lib = parsed.protocol === 'https:' ? https : http;
-    const options = {
-      hostname: parsed.hostname,
-      path: parsed.pathname + parsed.search,
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'image/png',
-        'Content-Length': buffer.length
-      }
-    };
-    const req = lib.request(options, res => {
-      res.resume();
-      res.on('end', resolve);
-    });
-    req.on('error', reject);
-    req.write(buffer);
-    req.end();
+// ── Upload PNG to Typefully ───────────────────────────────────────────────────
+async function uploadImage(pngBuffer, filename) {
+  // Step 1: Get presigned upload URL
+  console.log('  Requesting presigned upload URL...');
+  const res = await apiRequest('POST', '/media/upload', {
+    file_name: filename,
+    content_type: 'image/png',
+    file_size: pngBuffer.length
   });
-}
 
-// Extract a human-readable title from the HTML <title> tag
-function extractTitle(filePath) {
-  const html = fs.readFileSync(filePath, 'utf8');
-  const match = html.match(/<title>([^<]+)<\/title>/i);
-  return match ? match[1].trim() : path.basename(filePath, '.html');
-}
-
-// ── MAIN ──────────────────────────────────────────────────────────────────────
-
-async function main() {
-  const manifest     = loadManifest();
-  const changedFiles = getChangedFiles();
-
-  if (changedFiles.length === 0) {
-    console.log('No HTML chart files changed. Nothing to do.');
-    return;
+  if (res.status !== 200 && res.status !== 201) {
+    throw new Error(`Media upload init failed: ${JSON.stringify(res.body)}`);
   }
 
-  console.log(`Processing ${changedFiles.length} changed chart(s): ${changedFiles.join(', ')}`);
+  const { upload_url, media_id } = res.body;
+  console.log(`  Got media_id: ${media_id}`);
 
-  for (const filename of changedFiles) {
-    const filePath  = path.join(process.cwd(), filename);
-    if (!fs.existsSync(filePath)) {
-      console.log(`  Skipping ${filename} (deleted)`);
+  // Step 2: PUT to S3
+  console.log('  Uploading PNG to S3...');
+  await new Promise((resolve, reject) => {
+    const url = new URL(upload_url);
+    const options = {
+      hostname: url.hostname,
+      path: url.pathname + url.search,
+      method: 'PUT',
+      headers: { 'Content-Type': 'image/png', 'Content-Length': pngBuffer.length }
+    };
+    const req = https.request(options, res => { res.resume(); res.on('end', resolve); });
+    req.on('error', reject);
+    req.write(pngBuffer);
+    req.end();
+  });
+  console.log('  S3 upload complete');
+
+  // Step 3: Poll for ready status
+  for (let i = 0; i < 15; i++) {
+    await new Promise(r => setTimeout(r, 2000));
+    const s = await apiRequest('GET', `/media/${media_id}/status`);
+    console.log(`  Media status: ${s.body.status}`);
+    if (s.body.status === 'ready') return media_id;
+    if (s.body.status === 'error') throw new Error('Typefully media processing failed');
+  }
+  throw new Error('Timed out waiting for media to be ready');
+}
+
+// ── Create Typefully Draft ────────────────────────────────────────────────────
+async function createDraft(title, pageUrl, mediaId) {
+  const text = `${title}\n\n📊 Full interactive chart → ${pageUrl}\n\n#AI #RealEstate #WealthBuilding #PropTech`;
+  const res = await apiRequest('POST', `/drafts?social_set_id=${TYPEFULLY_SOCIAL_SET_ID}`, {
+    draft_title: `[Auto] ${title}`,
+    platforms: {
+      x: {
+        enabled: true,
+        posts: [{ text, media_ids: mediaId ? [mediaId] : [] }]
+      }
+    }
+  });
+  if (res.status !== 200 && res.status !== 201) {
+    throw new Error(`Draft creation failed: ${JSON.stringify(res.body)}`);
+  }
+  return res.body;
+}
+
+// ── Main ──────────────────────────────────────────────────────────────────────
+async function main() {
+  console.log('\n=== Chart → Typefully Pipeline ===\n');
+
+  const manifest = fs.existsSync(MANIFEST_PATH)
+    ? JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'))
+    : { charts: {} };
+
+  const files = getChangedHtmlFiles();
+  console.log(`Changed HTML files: ${files.length > 0 ? files.join(', ') : 'none'}`);
+
+  for (const file of files) {
+    console.log(`\nProcessing: ${file}`);
+
+    const content = fs.readFileSync(file);
+    const hash = require('crypto').createHash('md5').update(content).digest('hex');
+
+    if (manifest.charts[file]?.hash === hash) {
+      console.log('  Unchanged since last run, skipping.');
       continue;
     }
 
-    const fileHash = require('crypto')
-      .createHash('md5')
-      .update(fs.readFileSync(filePath))
-      .digest('hex');
+    // Screenshot
+    console.log('  Taking screenshot...');
+    const png = await screenshot(file);
 
-    // Skip if file hasn't changed since last run
-    if (manifest.charts[filename]?.hash === fileHash) {
-      console.log(`  Skipping ${filename} (unchanged)`);
-      continue;
-    }
+    // Upload
+    const pngName = file.replace('.html', '.png');
+    console.log(`  Uploading ${pngName}...`);
+    const mediaId = await uploadImage(png, pngName);
 
-    console.log(`  📸 Screenshotting ${filename} at ${SCREENSHOT_WIDTH}×${SCREENSHOT_HEIGHT}...`);
-    const pngBuffer = await screenshot(filePath);
+    // Extract title from HTML
+    const html = content.toString();
+    const titleMatch = html.match(/<title>([^<]+)<\/title>/i);
+    const title = titleMatch ? titleMatch[1].trim() : file.replace('.html', '');
+    const pageUrl = `${GITHUB_PAGES_BASE}/${file}`;
 
-    const pngFilename = filename.replace('.html', '.png');
-    console.log(`  ⬆️  Uploading ${pngFilename} to Typefully...`);
-    const mediaId = await uploadToTypefully(pngBuffer, pngFilename);
-    console.log(`  ✅ Media ID: ${mediaId}`);
+    // Create draft
+    console.log('  Creating Typefully draft...');
+    const draft = await createDraft(title, pageUrl, mediaId);
+    console.log(`  ✅ Draft created — ID: ${draft.id || draft.draft_id}`);
 
-    const title       = extractTitle(filePath);
-    const pageUrl     = `${GITHUB_PAGES_BASE}/${filename}`;
-    const tweetText   = `${title}\n\n📊 Full interactive chart → ${pageUrl}\n\n#AI #RealEstate #WealthBuilding`;
-
-    console.log(`  📝 Creating Typefully draft...`);
-    const draft = await createDraft(
-      `[Auto] ${title}`,
-      tweetText,
-      mediaId,
-      null   // null = saved as draft, not scheduled — you schedule via Claude or Typefully UI
-    );
-    console.log(`  ✅ Draft created: ID ${draft.id || draft.draft_id}`);
-
-    // Record in manifest
-    manifest.charts[filename] = {
-      hash:      fileHash,
-      media_id:  mediaId,
-      draft_id:  draft.id || draft.draft_id,
-      page_url:  pageUrl,
+    manifest.charts[file] = {
+      hash,
+      media_id: mediaId,
+      draft_id: draft.id || draft.draft_id,
+      page_url: pageUrl,
       processed: new Date().toISOString()
     };
   }
 
-  saveManifest(manifest);
-  console.log('\n✅ All done. Manifest updated.');
+  fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
+  console.log('\n✅ Pipeline complete.\n');
 }
 
-main().catch(err => {
-  console.error('Fatal error:', err);
-  process.exit(1);
-});
+main().catch(err => { console.error('FATAL:', err); process.exit(1); });
