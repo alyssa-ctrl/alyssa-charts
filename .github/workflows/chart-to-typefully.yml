@@ -1,0 +1,37 @@
+name: Chart → Typefully
+
+on:
+  push:
+    paths:
+      - '**.html'
+
+jobs:
+  screenshot-and-schedule:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install puppeteer node-fetch form-data
+
+      - name: Screenshot & upload to Typefully
+        env:
+          TYPEFULLY_API_KEY: ${{ secrets.TYPEFULLY_API_KEY }}
+          GITHUB_PAGES_BASE: "https://alyssa-ctrl.github.io/alyssa-charts"
+          TYPEFULLY_SOCIAL_SET_ID: ${{ secrets.TYPEFULLY_SOCIAL_SET_ID }}
+        run: node .github/scripts/screenshot-and-upload.js
+
+      - name: Commit updated manifest
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add chart-manifest.json
+          git diff --staged --quiet || git commit -m "Update chart manifest [skip ci]"
+          git push
