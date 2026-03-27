@@ -32,7 +32,7 @@ jobs:
           GITHUB_PAGES_BASE: "https://alyssa-ctrl.github.io/alyssa-charts"
           TYPEFULLY_SOCIAL_SET_ID: ${{ secrets.TYPEFULLY_SOCIAL_SET_ID }}
           PUPPETEER_EXECUTABLE_PATH: "/usr/bin/google-chrome-stable"
-        run: node .github/workflows/.github/scripts/screenshot-and-upload.js
+        run: node .github/scripts/screenshot-and-upload.js
 
       - name: Commit updated manifest
         run: |
