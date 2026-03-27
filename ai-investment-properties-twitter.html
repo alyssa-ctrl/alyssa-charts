@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI in Investment Properties — 1200x675</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    width: 1200px;
+    height: 675px;
+    overflow: hidden;
+    background: #060d1f;
+    font-family: 'Syne', sans-serif;
+    color: #f0f8f9;
+    display: flex;
+  }
+
+  /* ── LEFT — CHART (dominant) ── */
+  .left {
+    flex: 1;
+    padding: 40px 44px 32px 48px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .chart-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  .chart-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #4a7a8a;
+  }
+  .legend {
+    display: flex;
+    gap: 20px;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: #4a7a8a;
+  }
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* BARS */
+  .chart {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    flex: 1;
+    justify-content: center;
+  }
+
+  .row { display: flex; flex-direction: column; gap: 5px; }
+
+  .row-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11.5px;
+    color: #b8d4db;
+    letter-spacing: 0.1px;
+  }
+  .cat-badge {
+    font-size: 8px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    background: rgba(21,210,197,0.1);
+    color: #15d2c5;
+    padding: 2px 7px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  .bar-group { display: flex; flex-direction: column; gap: 4px; }
+  .bar-wrap { display: flex; align-items: center; gap: 10px; }
+  .bar-year {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: #2e5060;
+    width: 30px;
+    flex-shrink: 0;
+  }
+  .bar-track {
+    flex: 1;
+    height: 22px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding-right: 10px;
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    white-space: nowrap;
+    width: 0%;
+    transition: width 1.1s cubic-bezier(.16,1,.3,1);
+  }
+  .bar-fill.y26 {
+    background: linear-gradient(90deg, #0e6a82 0%, #119ab8 100%);
+    color: rgba(255,255,255,0.88);
+  }
+  .bar-fill.y27 {
+    background: linear-gradient(90deg, #17b075 0%, #23e798 100%);
+    color: #040e1a;
+  }
+
+  .divider { height: 1px; background: rgba(255,255,255,0.05); }
+
+  .sources {
+    font-family: 'DM Mono', monospace;
+    font-size: 9.5px;
+    color: #1e3a46;
+    margin-top: 20px;
+    letter-spacing: 0.2px;
+  }
+
+  /* ── RIGHT — HEADLINE + STATS ── */
+  .right {
+    width: 330px;
+    flex-shrink: 0;
+    background: #0b1929;
+    border-left: 1px solid rgba(21,210,197,0.12);
+    padding: 36px 32px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .eyebrow {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 2.5px;
+    text-transform: uppercase;
+    color: #15d2c5;
+    margin-bottom: 14px;
+  }
+
+  h1 {
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1.12;
+    color: #f0f8f9;
+    margin-bottom: 10px;
+  }
+  h1 em {
+    font-style: normal;
+    color: #23e798;
+  }
+
+  .tagline {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: #3a6070;
+    line-height: 1.6;
+    margin-bottom: 28px;
+  }
+
+  .stat-stack { display: flex; flex-direction: column; gap: 10px; }
+  .stat-item {
+    background: rgba(21,210,197,0.05);
+    border: 1px solid rgba(21,210,197,0.11);
+    border-radius: 8px;
+    padding: 13px 16px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  .stat-num {
+    font-size: 26px;
+    font-weight: 800;
+    color: #23e798;
+    line-height: 1;
+    flex-shrink: 0;
+  }
+  .stat-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: #3a6070;
+    line-height: 1.5;
+  }
+
+  .handle {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: #15d2c5;
+    letter-spacing: 0.5px;
+    margin-top: 20px;
+  }
+</style>
+</head>
+<body>
+
+<!-- LEFT: CHART -->
+<div class="left">
+  <div class="chart-meta">
+    <div class="chart-label">ROI lift — AI users vs. non-AI investors</div>
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:#119ab8"></div>2026 reported</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#23e798"></div>2027 projected</div>
+    </div>
+  </div>
+
+  <div class="chart">
+
+    <div class="row">
+      <div class="row-label">AI-assisted deal sourcing &amp; underwriting <span class="cat-badge">acquisition</span></div>
+      <div class="bar-group">
+        <div class="bar-wrap"><span class="bar-year">2026</span><div class="bar-track"><div class="bar-fill y26" data-w="66">+24% ROI lift</div></div></div>
+        <div class="bar-wrap"><span class="bar-year">2027</span><div class="bar-track"><div class="bar-fill y27" data-w="82">+31% ROI lift</div></div></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="row">
+      <div class="row-label">Dynamic rent pricing optimization <span class="cat-badge">revenue</span></div>
+      <div class="bar-group">
+        <div class="bar-wrap"><span class="bar-year">2026</span><div class="bar-track"><div class="bar-fill y26" data-w="52">+8–12% rent premium</div></div></div>
+        <div class="bar-wrap"><span class="bar-year">2027</span><div class="bar-track"><div class="bar-fill y27" data-w="70">+14–18% rent premium</div></div></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="row">
+      <div class="row-label">Predictive maintenance &amp; capex planning <span class="cat-badge">operations</span></div>
+      <div class="bar-group">
+        <div class="bar-wrap"><span class="bar-year">2026</span><div class="bar-track"><div class="bar-fill y26" data-w="46">22% cost reduction</div></div></div>
+        <div class="bar-wrap"><span class="bar-year">2027</span><div class="bar-track"><div class="bar-fill y27" data-w="64">34% cost reduction</div></div></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="row">
+      <div class="row-label">Vacancy prediction &amp; tenant scoring <span class="cat-badge">risk</span></div>
+      <div class="bar-group">
+        <div class="bar-wrap"><span class="bar-year">2026</span><div class="bar-track"><div class="bar-fill y26" data-w="40">3.1% vacancy reduction</div></div></div>
+        <div class="bar-wrap"><span class="bar-year">2027</span><div class="bar-track"><div class="bar-fill y27" data-w="58">5.8% vacancy reduction</div></div></div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="row">
+      <div class="row-label">Market timing &amp; exit signal models <span class="cat-badge">strategy</span></div>
+      <div class="bar-group">
+        <div class="bar-wrap"><span class="bar-year">2026</span><div class="bar-track"><div class="bar-fill y26" data-w="34">18% better exit timing</div></div></div>
+        <div class="bar-wrap"><span class="bar-year">2027</span><div class="bar-track"><div class="bar-fill y27" data-w="52">27% better exit timing</div></div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="sources">Sources: McKinsey Global Institute · Deloitte PropTech · JLL Research · Goldman Sachs RE Report 2026</div>
+</div>
+
+<!-- RIGHT: HEADLINE + STATS -->
+<div class="right">
+  <div>
+    <div class="eyebrow">AI × Real Estate — Post 1 of 7</div>
+    <h1>AI is<br>rewriting<br>real estate<br><em>returns</em></h1>
+    <p class="tagline">Investors using AI are<br>projected to outperform<br>by 31% by 2027.</p>
+  </div>
+
+  <div>
+    <div class="stat-stack">
+      <div class="stat-item">
+        <div class="stat-num">31%</div>
+        <div class="stat-label">ROI advantage<br>for AI investors (2027)</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">$2.4T</div>
+        <div class="stat-label">AI-optimized RE<br>assets by 2027</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">5×</div>
+        <div class="stat-label">Faster deal analysis<br>vs. manual</div>
+      </div>
+    </div>
+    <div class="handle">@AlyssaClarkRE</div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.bar-fill').forEach(bar => {
+    setTimeout(() => { bar.style.width = bar.dataset.w + '%'; }, 300);
+  });
+</script>
+</body>
+</html>
