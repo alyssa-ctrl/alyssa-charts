@@ -1,4 +1,4 @@
-name: Chart → Typefully
+name: Chart to Typefully
 
 on:
   push:
@@ -11,10 +11,10 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Setup Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version: '20'
 
@@ -26,48 +26,12 @@ jobs:
       - name: Install Node dependencies
         run: npm install puppeteer-core
 
-      - name: Screenshot & upload to Typefully
+      - name: Run screenshot and upload
         env:
           TYPEFULLY_API_KEY: ${{ secrets.TYPEFULLY_API_KEY }}
           GITHUB_PAGES_BASE: "https://alyssa-ctrl.github.io/alyssa-charts"
           TYPEFULLY_SOCIAL_SET_ID: ${{ secrets.TYPEFULLY_SOCIAL_SET_ID }}
           PUPPETEER_EXECUTABLE_PATH: "/usr/bin/google-chrome-stable"
-        run: node .github/scripts/screenshot-and-upload.js
-
-      - name: Commit updated manifest
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add chart-manifest.json
-          git diff --staged --quiet || git commit -m "Update chart manifest [skip ci]"
-          git pushname: Chart → Typefully
-
-on:
-  push:
-    paths:
-      - '**.html'
-
-jobs:
-  screenshot-and-schedule:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm install puppeteer node-fetch form-data
-
-      - name: Screenshot & upload to Typefully
-        env:
-          TYPEFULLY_API_KEY: ${{ secrets.TYPEFULLY_API_KEY }}
-          GITHUB_PAGES_BASE: "https://alyssa-ctrl.github.io/alyssa-charts"
-          TYPEFULLY_SOCIAL_SET_ID: ${{ secrets.TYPEFULLY_SOCIAL_SET_ID }}
         run: node .github/scripts/screenshot-and-upload.js
 
       - name: Commit updated manifest
