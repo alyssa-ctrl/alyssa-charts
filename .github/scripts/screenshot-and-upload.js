@@ -41,6 +41,7 @@ async function screenshot(filePath) {
   await new Promise(r => setTimeout(r, 1800));
   const buffer = await page.screenshot({ type: 'png', clip: { x: 0, y: 0, width: 1200, height: 675 } });
   await browser.close();
+  console.log('Screenshot: ' + buffer.length + ' bytes');
   return buffer;
 }
 
@@ -49,7 +50,7 @@ function apiRequest(method, endpoint, body) {
     const payload = body ? JSON.stringify(body) : null;
     const options = {
       hostname: 'api.typefully.com',
-      path: '/v1' + endpoint,
+      path: endpoint,
       method,
       headers: {
         'X-API-KEY': 'Bearer ' + TYPEFULLY_API_KEY,
@@ -61,6 +62,7 @@ function apiRequest(method, endpoint, body) {
       let data = '';
       res.on('data', c => data += c);
       res.on('end', () => {
+        console.log('API ' + method + ' ' + endpoint + ' -> ' + res.statusCode);
         try { resolve({ status: res.statusCode, body: JSON.parse(data) }); }
         catch { resolve({ status: res.statusCode, body: data }); }
       });
@@ -71,23 +73,38 @@ function apiRequest(method, endpoint, body) {
   });
 }
 
-async function uploadImage(pngBuffer, filename) {
-  const res = await apiRequest('POST', '/media/upload', {
-    file_name: filename, content_type: 'image/png', file_size: pngBuffer.length
-  });
-  if (res.status !== 200 && res.status !== 201) throw new Error('Upload init failed: ' + JSON.stringify(res.body));
-  const { upload_url, media_id } = res.body;
-  await new Promise((resolve, reject) => {
-    const url = new URL(upload_url);
-    const req = https.request({ hostname: url.hostname, path: url.pathname + url.search, method: 'PUT',
-      headers: { 'Content-Type': 'image/png', 'Content-Length': pngBuffer.length }
+function putToS3(uploadUrl, buffer) {
+  return new Promise((resolve, reject) => {
+    const url = new URL(uploadUrl);
+    const req = https.request({
+      hostname: url.hostname,
+      path: url.pathname + url.search,
+      method: 'PUT',
+      headers: { 'Content-Length': buffer.length }
     }, res => { res.resume(); res.on('end', resolve); });
-    req.on('error', reject); req.write(pngBuffer); req.end();
+    req.on('error', reject);
+    req.write(buffer);
+    req.end();
   });
+}
+
+async function uploadImage(pngBuffer, filename) {
+  const res = await apiRequest('POST', '/v1/media/upload?social_set_id=' + TYPEFULLY_SOCIAL_SET_ID, {
+    file_name: filename,
+    content_type: 'image/png',
+    file_size: pngBuffer.length
+  });
+  if (res.status !== 200 && res.status !== 201) {
+    throw new Error('Upload init failed (' + res.status + '): ' + JSON.stringify(res.body));
+  }
+  const { upload_url, media_id } = res.body;
+  console.log('Got media_id: ' + media_id);
+  await putToS3(upload_url, pngBuffer);
+  console.log('S3 upload done');
   for (let i = 0; i < 15; i++) {
     await new Promise(r => setTimeout(r, 2000));
-    const s = await apiRequest('GET', '/media/' + media_id + '/status');
-    console.log('Media status: ' + s.body.status);
+    const s = await apiRequest('GET', '/v1/media/' + media_id + '/status?social_set_id=' + TYPEFULLY_SOCIAL_SET_ID);
+    console.log('Media status: ' + (s.body.status || JSON.stringify(s.body)));
     if (s.body.status === 'ready') return media_id;
     if (s.body.status === 'error') throw new Error('Media processing failed');
   }
@@ -95,8 +112,8 @@ async function uploadImage(pngBuffer, filename) {
 }
 
 async function createDraft(title, pageUrl, mediaId) {
-  const text = title + '\n\n📊 Full chart: ' + pageUrl + '\n\n#AI #RealEstate #WealthBuilding #PropTech';
-  const res = await apiRequest('POST', '/drafts?social_set_id=' + TYPEFULLY_SOCIAL_SET_ID, {
+  const text = title + '\n\n Full chart: ' + pageUrl + '\n\n#AI #RealEstate #WealthBuilding #PropTech';
+  const res = await apiRequest('POST', '/v1/drafts?social_set_id=' + TYPEFULLY_SOCIAL_SET_ID, {
     draft_title: '[Auto] ' + title,
     platforms: { x: { enabled: true, posts: [{ text, media_ids: mediaId ? [mediaId] : [] }] } }
   });
@@ -106,4 +123,24 @@ async function createDraft(title, pageUrl, mediaId) {
 
 async function main() {
   console.log('=== Chart to Typefully Pipeline ===');
-  const manifest = fs.existsSync(MANIFES
+  const manifest = fs.existsSync(MANIFEST_PATH) ? JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8')) : { charts: {} };
+  const files = getChangedHtmlFiles();
+  console.log('Files: ' + (files.length ? files.join(', ') : 'none'));
+  for (const file of files) {
+    const content = fs.readFileSync(file);
+    const hash = require('crypto').createHash('md5').update(content).digest('hex');
+    if (manifest.charts[file]?.hash === hash) { console.log('Skipping ' + file + ' (unchanged)'); continue; }
+    console.log('Processing: ' + file);
+    const png = await screenshot(file);
+    const mediaId = await uploadImage(png, file.replace('.html', '.png'));
+    const html = content.toString();
+    const title = (html.match(/<title>([^<]+)<\/title>/i) || [])[1] || file;
+    const draft = await createDraft(title, GITHUB_PAGES_BASE + '/' + file, mediaId);
+    console.log('Draft created: ' + (draft.id || draft.draft_id));
+    manifest.charts[file] = { hash, media_id: mediaId, draft_id: draft.id || draft.draft_id, processed: new Date().toISOString() };
+  }
+  fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
+  console.log('Done!');
+}
+
+main().catch(err => { console.error('FATAL:', err); process.exit(1); });
