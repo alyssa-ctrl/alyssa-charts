@@ -50,9 +50,17 @@ async function screenshot(filePath) {
 function typefullyRequest(method, endpoint, body) {
   return new Promise((resolve, reject) => {
     const payload = body ? JSON.stringify(body) : null;
-    const headers = { 'Authorization': 'Bearer ' + TYPEFULLY_API_KEY, 'Content-Type': 'application/json' };
+    const headers = {
+      'Authorization': 'Bearer ' + TYPEFULLY_API_KEY,
+      'Content-Type': 'application/json'
+    };
     if (payload) headers['Content-Length'] = Buffer.byteLength(payload);
-    const req = https.request({ hostname: 'api.typefully.com', path: endpoint, method, headers }, res => {
+    const req = https.request({
+      hostname: 'api.typefully.com',
+      path: endpoint,
+      method,
+      headers
+    }, res => {
       let data = '';
       res.on('data', c => data += c);
       res.on('end', () => {
@@ -74,7 +82,7 @@ function putToS3(uploadUrl, buffer) {
       hostname: url.hostname,
       path: url.pathname + url.search,
       method: 'PUT',
-      headers: { 'Content-Type': 'image/png', 'Content-Length': buffer.length }
+      headers: {}
     }, res => {
       let data = '';
       res.on('data', c => data += c);
@@ -84,8 +92,7 @@ function putToS3(uploadUrl, buffer) {
       });
     });
     req.on('error', reject);
-    req.write(buffer);
-    req.end();
+    req.end(buffer);
   });
 }
 
@@ -110,7 +117,8 @@ async function uploadImage(pngBuffer, filename) {
   console.log('media_id: ' + media_id);
   const s3Status = await putToS3(upload_url, pngBuffer);
   if (s3Status >= 400) throw new Error('S3 upload failed with status ' + s3Status);
-  await waitForMedia(media_id, 90000);
+  const ready = await waitForMedia(media_id, 90000);
+  if (!ready) console.log('Warning: media not ready, continuing anyway');
   return media_id;
 }
 
@@ -118,7 +126,9 @@ async function createDraft(title, pageUrl, mediaId) {
   const text = title + '\n\n\u{1F4CA} Full chart: ' + pageUrl + '\n\n#AI #RealEstate #WealthBuilding #PropTech';
   const res = await typefullyRequest('POST', '/v2/social-sets/' + TYPEFULLY_SOCIAL_SET_ID + '/drafts', {
     draft_title: '[Auto] ' + title,
-    platforms: { x: { enabled: true, posts: [{ text, media_ids: mediaId ? [mediaId] : [] }] } }
+    platforms: {
+      x: { enabled: true, posts: [{ text, media_ids: mediaId ? [mediaId] : [] }] }
+    }
   });
   if (res.status !== 200 && res.status !== 201) throw new Error('Draft failed: ' + JSON.stringify(res.body));
   return res.body;
@@ -134,14 +144,21 @@ async function main() {
   for (const file of files) {
     const content = fs.readFileSync(file);
     const hash = require('crypto').createHash('md5').update(content).digest('hex');
-    if (manifest.charts[file] && manifest.charts[file].hash === hash) { console.log('Skipping: ' + file); continue; }
+    if (manifest.charts[file] && manifest.charts[file].hash === hash) {
+      console.log('Skipping: ' + file); continue;
+    }
     console.log('Processing: ' + file);
     const png = await screenshot(file);
     const mediaId = await uploadImage(png, file.replace('.html', '.png'));
     const title = (content.toString().match(/<title>([^<]+)<\/title>/i) || [])[1] || file;
     const draft = await createDraft(title, GITHUB_PAGES_BASE + '/' + file, mediaId);
     console.log('Draft created: ' + (draft.id || draft.draft_id));
-    manifest.charts[file] = { hash, media_id: mediaId, draft_id: draft.id || draft.draft_id, processed: new Date().toISOString() };
+    manifest.charts[file] = {
+      hash,
+      media_id: mediaId,
+      draft_id: draft.id || draft.draft_id,
+      processed: new Date().toISOString()
+    };
   }
   fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
   console.log('Done!');
