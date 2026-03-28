@@ -5,6 +5,9 @@ on:
     paths:
       - '**.html'
 
+permissions:
+  contents: write
+
 jobs:
   screenshot-and-schedule:
     runs-on: ubuntu-latest
