@@ -44,14 +44,11 @@ async function screenshot(filePath) {
     ],
     defaultViewport: { width: 1200, height: 675 }
   });
-
   const page = await browser.newPage();
   await page.setBypassCSP(true);
-
   const fileUrl = 'file://' + path.resolve(filePath);
   console.log('  Opening: ' + fileUrl);
   await page.goto(fileUrl, { waitUntil: 'networkidle0', timeout: 30000 });
-
   try {
     await page.waitForFunction(
       () => document.title === 'CHART_READY' || document.title === 'CHART_ERROR',
@@ -62,7 +59,6 @@ async function screenshot(filePath) {
   } catch (e) {
     console.log('  Warning: no CHART_READY signal, screenshotting anyway');
   }
-
   await new Promise(r => setTimeout(r, 1500));
   const buf = await page.screenshot({ type: 'png', clip: { x: 0, y: 0, width: 1200, height: 675 } });
   await browser.close();
@@ -179,33 +175,25 @@ async function createDraft(title, pageUrl, mediaId) {
 
 async function main() {
   console.log('=== Alyssa Charts Pipeline ===');
-
   const manifest = fs.existsSync(MANIFEST_PATH)
     ? JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'))
     : { charts: {} };
-
   const files = getChangedHtmlFiles();
   console.log('Files to process: ' + (files.length ? files.join(', ') : 'none'));
-
   for (const file of files) {
     const content = fs.readFileSync(file);
     const hash = require('crypto').createHash('md5').update(content).digest('hex');
-
     if (manifest.charts[file] && manifest.charts[file].hash === hash) {
       console.log('  Skipping unchanged: ' + file);
       continue;
     }
-
     console.log('\nProcessing: ' + file);
-
     const png = await screenshot(file);
     const mediaId = await uploadImage(png, file.replace('.html', '.png'));
     const titleMatch = content.toString().match(/<title>([^<]+)<\/title>/i);
     const title = titleMatch ? titleMatch[1] : file;
     const draft = await createDraft(title, GITHUB_PAGES_BASE + '/' + file, mediaId);
-
     console.log('  Draft created: ' + (draft.id || draft.draft_id));
-
     manifest.charts[file] = {
       hash: hash,
       media_id: mediaId,
@@ -213,7 +201,6 @@ async function main() {
       processed: new Date().toISOString()
     };
   }
-
   fs.writeFileSync(MANIFEST_PATH, JSON.stringify(manifest, null, 2));
   console.log('\nDone!');
 }
@@ -224,18 +211,12 @@ main().catch(function(e) {
 });
 ```
 
-Commit directly on GitHub with message **"Clean script - remove shell commands"**. Then in Terminal:
+Commit with message **"Clean script final"** directly on GitHub. Then in Terminal run these one at a time:
+```
+cd ~/Documents/GitHub/alyssa-charts
+```
 ```
 git pull --rebase
-```
-```
-echo "v4" >> fred-mortgage-rates.html
-```
-```
-git add .
-```
-```
-git commit -m "Trigger FRED chart v4"
 ```
 ```
 git push
