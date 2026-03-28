@@ -1,3 +1,16 @@
 {
-  "charts": {}
+  "charts": {
+    "ai-investment-properties-twitter.html": {
+      "hash": "799d748c6f497fcb68cef4c2ba52e6fb",
+      "media_id": "0b034102-e91f-490e-b14a-e505185c2715",
+      "draft_id": 8523546,
+      "processed": "2026-03-28T01:14:26.696Z"
+    },
+    "test-pipeline.html": {
+      "hash": "313d6c13dfd01432b556de9ef806d94e",
+      "media_id": "c0a1cfa9-4bb2-4084-b3ca-21a34fa82030",
+      "draft_id": 8523548,
+      "processed": "2026-03-28T01:14:33.818Z"
+    }
+  }
 }
