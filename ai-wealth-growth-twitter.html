@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI for Wealth Growth — 2026 to 2035 Projection</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  width: 1200px; height: 675px; overflow: hidden;
+  background: #060d1f;
+  font-family: 'DM Mono', monospace;
+  color: #f0f8f9;
+  display: flex;
+}
+.left {
+  width: 340px; flex-shrink: 0;
+  background: #0b1929;
+  border-right: 1px solid rgba(21,210,197,0.12);
+  padding: 44px 36px;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.eyebrow { font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase; color: #15d2c5; margin-bottom: 14px; }
+.headline { font-family: 'Syne', sans-serif; font-size: 36px; font-weight: 800; line-height: 1.1; color: #f0f8f9; margin-bottom: 10px; }
+.headline em { font-style: normal; color: #23e798; }
+.subline { font-size: 11px; color: #3a6070; line-height: 1.6; margin-bottom: 24px; }
+.stat-stack { display: flex; flex-direction: column; gap: 10px; }
+.stat { background: rgba(21,210,197,0.05); border: 1px solid rgba(21,210,197,0.11); border-radius: 8px; padding: 12px 14px; display: flex; align-items: baseline; gap: 10px; }
+.stat-num { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 800; color: #23e798; line-height: 1; flex-shrink: 0; }
+.stat-lbl { font-size: 10px; color: #3a6070; line-height: 1.5; }
+.handle { font-size: 11px; color: #15d2c5; letter-spacing: 0.5px; margin-top: 16px; }
+.right { flex: 1; padding: 36px 48px 28px 44px; display: flex; flex-direction: column; }
+.chart-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.chart-lbl { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #2e5060; }
+.legend { display: flex; gap: 20px; }
+.leg { display: flex; align-items: center; gap: 7px; font-size: 10px; color: #3a6070; }
+.leg-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.chart-wrap { position: relative; width: 100%; height: 480px; }
+.sources { font-size: 9px; color: #1a3040; margin-top: 10px; letter-spacing: 0.2px; }
+</style>
+</head>
+<body>
+
+<div class="left">
+  <div>
+    <div class="eyebrow">AI x Wealth — Post 3 of 7</div>
+    <div class="headline">AI doesn't<br>just save<br>time. It<br><em>compounds</em><br>wealth.</div>
+    <div class="subline">$100k portfolio — traditional<br>investing vs AI-augmented<br>over 10 years (2025–2035)</div>
+  </div>
+  <div>
+    <div class="stat-stack">
+      <div class="stat">
+        <div class="stat-num">$247k</div>
+        <div class="stat-lbl">AI-augmented<br>portfolio by 2035</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">+68%</div>
+        <div class="stat-lbl">Gap vs traditional<br>investing by 2035</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">2027</div>
+        <div class="stat-lbl">When the gap<br>becomes undeniable</div>
+      </div>
+    </div>
+    <div class="handle">@AlyssaClarkRE</div>
+  </div>
+</div>
+
+<div class="right">
+  <div class="chart-meta">
+    <div class="chart-lbl">Portfolio value — $100k starting capital</div>
+    <div class="legend">
+      <div class="leg"><div class="leg-dot" style="background:#23e798"></div>AI-augmented</div>
+      <div class="leg"><div class="leg-dot" style="background:#11738b"></div>Traditional</div>
+      <div class="leg"><div class="leg-dot" style="background:#2e5060;border:1px dashed #4a7a8a"></div>No investing</div>
+    </div>
+  </div>
+  <div class="chart-wrap">
+    <canvas id="wealthChart"></canvas>
+  </div>
+  <div class="sources">Sources: Goldman Sachs AI Wealth Report 2026 · Vanguard Investor Research · Morgan Stanley AI Portfolio Study · ARK Invest 2027 Projections</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+new Chart(document.getElementById('wealthChart'), {
+  type: 'line',
+  data: {
+    labels: ['2025','2026','2027','2028','2029','2030','2031','2032','2033','2034','2035'],
+    datasets: [
+      {
+        label: 'AI-augmented',
+        data: [100,110,122,136,152,168,184,202,221,234,247],
+        borderColor: '#23e798',
+        backgroundColor: 'rgba(35,231,152,0.07)',
+        borderWidth: 3,
+        pointBackgroundColor: '#23e798',
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        fill: true,
+        tension: 0.4
+      },
+      {
+        label: 'Traditional',
+        data: [100,107,115,123,132,141,151,162,174,187,200],
+        borderColor: '#11738b',
+        backgroundColor: 'rgba(17,115,139,0.05)',
+        borderWidth: 2.5,
+        pointBackgroundColor: '#11738b',
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        fill: true,
+        tension: 0.4
+      },
+      {
+        label: 'No investing',
+        data: [100,102,104,106,108,110,112,114,116,118,120],
+        borderColor: '#2e5060',
+        borderDash: [6,4],
+        borderWidth: 1.5,
+        pointRadius: 0,
+        fill: false,
+        tension: 0.3
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#0b1929',
+        borderColor: 'rgba(21,210,197,0.2)',
+        borderWidth: 1,
+        padding: 12,
+        callbacks: { label: ctx => ' $' + ctx.parsed.y + 'k' }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: '#3a6070', font: { family: 'DM Mono', size: 12 } },
+        grid: { color: 'rgba(255,255,255,0.03)' }
+      },
+      y: {
+        min: 80, max: 280,
+        ticks: {
+          color: '#3a6070',
+          font: { family: 'DM Mono', size: 12 },
+          callback: v => '$' + v + 'k'
+        },
+        grid: { color: 'rgba(255,255,255,0.04)' }
+      }
+    }
+  }
+});
+</script>
+</body>
+</html>
