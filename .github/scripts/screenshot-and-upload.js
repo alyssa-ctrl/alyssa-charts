@@ -36,12 +36,12 @@ async function screenshot(filePath) {
   const browser = await puppeteer.launch({
     executablePath: findChrome(),
     args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
-    defaultViewport: { width: 1200, height: 675 }
+    defaultViewport: { width: 1200, height: 675, deviceScaleFactor: 2 }
   });
   const page = await browser.newPage();
   await page.goto('file://' + path.resolve(filePath), { waitUntil: 'networkidle0', timeout: 20000 });
   await new Promise(r => setTimeout(r, 1800));
-  const buffer = await page.screenshot({ type: 'png', clip: { x: 0, y: 0, width: 1200, height: 675 } });
+  const buffer = await page.screenshot({ type: 'png', clip: { x: 0, y: 0, width: 2400, height: 1350 } });
   await browser.close();
   console.log('Screenshot: ' + buffer.length + ' bytes');
   return buffer;
