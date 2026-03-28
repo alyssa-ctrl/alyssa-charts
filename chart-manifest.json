@@ -41,6 +41,24 @@
       "media_id": "6fd78867-25a2-4566-9ac4-d116c10427aa",
       "draft_id": 8525207,
       "processed": "2026-03-28T06:57:27.445Z"
+    },
+    "fred-fed-vs-mortgage.html": {
+      "hash": "e30260020baeb0398ff07b37dd33ed16",
+      "media_id": "18bec53f-1c50-4d81-8143-0a1e083fda47",
+      "draft_id": 8531693,
+      "processed": "2026-03-28T21:44:29.744Z"
+    },
+    "fred-home-prices.html": {
+      "hash": "e30260020baeb0398ff07b37dd33ed16",
+      "media_id": "9cf79c0f-9961-491d-9e63-07a513ee9134",
+      "draft_id": 8531695,
+      "processed": "2026-03-28T21:44:38.405Z"
+    },
+    "fred-mortgage-rates.html": {
+      "hash": "e30260020baeb0398ff07b37dd33ed16",
+      "media_id": "cef1cc5d-c484-4a95-88ee-724e18712f32",
+      "draft_id": 8531698,
+      "processed": "2026-03-28T21:44:47.245Z"
     }
   }
 }
