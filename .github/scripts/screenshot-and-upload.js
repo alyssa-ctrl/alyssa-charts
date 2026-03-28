@@ -231,23 +231,3 @@ async function main() {
 }
 
 main().catch(function(e) { console.error('FATAL:', e); process.exit(1); });
-```
-
-Commit with message **"Fix FRED data injection server side"** directly on GitHub. Then in Terminal:
-```
-cd ~/Documents/GitHub/alyssa-charts
-```
-```
-git pull --rebase
-```
-```
-echo "v6" >> fred-mortgage-rates.html
-```
-```
-git add .
-```
-```
-git commit -m "Retrigger mortgage chart v6"
-```
-```
-git push
