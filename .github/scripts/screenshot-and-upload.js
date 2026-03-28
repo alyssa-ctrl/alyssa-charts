@@ -39,8 +39,12 @@ async function screenshot(filePath) {
           defaultViewport: { width: 1200, height: 675 }
     });
     const page = await browser.newPage();
-    await page.goto('file://' + path.resolve(filePath), { waitUntil: 'networkidle0', timeout: 20000 });
-    await new Promise(r => setTimeout(r, 3500));
+    await page.goto('file://' + path.resolve(tmp), { waitUntil: 'networkidle0', timeout: 30000 });
+
+    // Wait for chart to signal ready via title
+    await page.waitForFunction(() => document.title === 'CHART_READY' || document.title === 'CHART_ERROR', { timeout: 15000 });
+
+    await new Promise(r => setTimeout(r, 1000));
     const buffer = await page.screenshot({ type: 'png', clip: { x: 0, y: 0, width: 1200, height: 675 } });
     await browser.close();
     console.log('Screenshot: ' + buffer.length + ' bytes');
