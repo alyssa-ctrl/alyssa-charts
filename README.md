@@ -57,3 +57,30 @@ You then open Claude, say "schedule the investment properties post for Tuesday 8
 | `chart-manifest.json` | Tracks processed files, media IDs, draft IDs |
 | `.github/workflows/chart-to-typefully.yml` | The Action definition |
 | `.github/scripts/screenshot-and-upload.js` | The screenshot + upload logic |
+
+
+---
+
+## Phase 1 — What we're building today
+
+Three chart HTML files that pull live verified data automatically when pushed to GitHub:
+
+**Chart 1 — fred-mortgage-rates.html**
+Live 30-yr mortgage rate from FRED. Updates every Thursday when Freddie Mac publishes.
+Source: Federal Reserve FRED `MORTGAGE30US`
+
+**Chart 2 — fred-fed-rate-vs-mortgage.html**
+Fed funds rate vs 30-yr mortgage on one chart — the most screenshotted chart in finance Twitter.
+Source: FRED `FEDFUNDS` + `MORTGAGE30US`
+
+**Chart 3 — fred-home-prices.html**
+Case-Shiller national home price index — the gold standard for tracking home values.
+Source: FRED `CSUSHPINSA`
+
+---
+
+## Phase 2 — Next session
+
+- Yahoo Finance REIT vs S&P chart
+- Alpha Vantage sector performance
+- Stock charts for BX, CBRE, PLD
