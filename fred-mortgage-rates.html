@@ -1,1 +1,123 @@
-v2
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>30-Year Mortgage Rate — Live FRED Data</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1200px;height:675px;overflow:hidden;background:#f5f0e8;font-family:'DM Sans',sans-serif;display:flex}
+.left{width:300px;flex-shrink:0;background:#11738b;padding:36px 28px;display:flex;flex-direction:column;justify-content:space-between}
+.eye{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,0.45);margin-bottom:10px}
+.h1{font-family:'Bebas Neue',sans-serif;font-size:52px;line-height:0.95;color:#fff;margin-bottom:10px}
+.h1 em{font-style:normal;color:#23e798}
+.sub{font-size:11px;color:rgba(255,255,255,0.45);line-height:1.6;margin-bottom:20px}
+.stats{display:flex;flex-direction:column}
+.stat{padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.1)}
+.stat:last-child{border-bottom:none}
+.sn{font-family:'Bebas Neue',sans-serif;font-size:32px;color:#23e798;line-height:1}
+.sl{font-size:10px;color:rgba(255,255,255,0.4);line-height:1.4;margin-top:2px}
+.handle{font-size:10px;color:rgba(255,255,255,0.3);margin-top:14px}
+.right{flex:1;padding:28px 40px 20px 32px;display:flex;flex-direction:column}
+.ct{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#b0a898;margin-bottom:14px}
+.src{font-size:9px;color:#c0b8a8;margin-top:8px}
+#status{font-size:11px;color:#11738b;padding:20px 0}
+</style>
+</head>
+<body>
+<div class="left">
+  <div>
+    <div class="eye">Federal Reserve FRED · Live</div>
+    <div class="h1">30-YR<br>MORT-<br>GAGE<br><em>RATE</em></div>
+    <div class="sub">Weekly data from<br>Freddie Mac via<br>Federal Reserve FRED</div>
+  </div>
+  <div>
+    <div class="stats">
+      <div class="stat"><div class="sn" id="latest">--</div><div class="sl">Current rate<br><span id="latestDate">Freddie Mac PMMS</span></div></div>
+      <div class="stat"><div class="sn">2.96%</div><div class="sl">Historic low · Jan 2021</div></div>
+      <div class="stat"><div class="sn">7.79%</div><div class="sl">Recent peak · Oct 2023</div></div>
+    </div>
+    <div class="handle">@AlyssaClarkRE</div>
+  </div>
+</div>
+<div class="right">
+  <div class="ct">30-year fixed mortgage rate — weekly · Freddie Mac Primary Mortgage Market Survey</div>
+  <div style="position:relative;flex:1;min-height:400px">
+    <div id="status">Loading live data from Federal Reserve FRED...</div>
+    <canvas id="c" style="display:none"></canvas>
+  </div>
+  <div class="src">Source: Federal Reserve Bank of St. Louis (FRED) · Series MORTGAGE30US · Freddie Mac PMMS · Updated weekly · fred.stlouisfed.org</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+async function loadChart() {
+  try {
+    const url = 'https://api.stlouisfed.org/fred/series/observations?series_id=MORTGAGE30US&sort_order=desc&limit=52&file_type=json';
+    const res = await fetch(url);
+    const json = await res.json();
+    const obs = json.observations
+      .filter(o => o.value !== '.')
+      .slice(0, 52)
+      .reverse();
+    const labels = obs.map(o => o.date);
+    const values = obs.map(o => parseFloat(o.value));
+    const latest = obs[obs.length - 1];
+
+    document.getElementById('latest').textContent = parseFloat(latest.value).toFixed(2) + '%';
+    document.getElementById('latestDate').textContent = 'Week of ' + latest.date;
+    document.getElementById('status').style.display = 'none';
+    document.getElementById('c').style.display = 'block';
+
+    new Chart(document.getElementById('c'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          borderColor: '#11738b',
+          backgroundColor: 'rgba(17,115,139,0.08)',
+          borderWidth: 3,
+          pointRadius: 2,
+          pointBackgroundColor: '#11738b',
+          pointBorderColor: '#f5f0e8',
+          pointBorderWidth: 2,
+          fill: true,
+          tension: 0.4
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#0f274d',
+            callbacks: { label: c => ` ${c.parsed.y.toFixed(2)}%` }
+          }
+        },
+        scales: {
+          x: {
+            ticks: { color: '#a09888', font: { size: 9 }, maxRotation: 45, maxTicksLimit: 12 },
+            grid: { color: 'rgba(0,0,0,0.04)' },
+            border: { display: false }
+          },
+          y: {
+            ticks: { color: '#a09888', font: { size: 10 }, callback: v => v + '%' },
+            grid: { color: 'rgba(0,0,0,0.05)' },
+            border: { display: false }
+          }
+        }
+      }
+    });
+
+    document.title = 'CHART_READY';
+  } catch(e) {
+    document.getElementById('status').textContent = 'Error: ' + e.message;
+    document.title = 'CHART_ERROR';
+  }
+}
+loadChart();
+</script>
+</body>
+</html>
